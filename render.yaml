@@ -1,0 +1,10 @@
+# Render Blueprint for the game server (the part Vercel can't run: WebSockets + in-memory rooms).
+services:
+  - type: web
+    name: quipsmash-server
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true

@@ -1,0 +1,27 @@
+{
+  "name": "quiplash-clone",
+  "version": "1.0.0",
+  "description": "A custom Quiplash-style party game: host screen + phone controllers over LAN.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/simulate.js 4",
+    "test:chaos": "node test/stress.js",
+    "test:browser": "node test/dom-check.js",
+    "test:layout": "node test/layout.js 8",
+    "test:shots": "node test/visual.js",
+    "test:all": "./test/all.sh",
+    "test:reconnect": "node test/reconnect.js",
+    "test:prompts": "node test/prompts.js",
+    "test:lobby": "node test/lobby.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "qrcode-generator": "^2.0.4",
+    "ws": "^8.18.0"
+  }
+}

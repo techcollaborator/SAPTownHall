@@ -1,0 +1,10 @@
+{
+  "_comment": "Your own prompts. Delete these and add your own — one string per line. <BLANK> renders as a fill-in-the-blank slot. You can also paste prompts straight into the host screen's 'Game options' panel, which only affects that one room.",
+  "prompts": [
+    "The real reason our last team offsite got cancelled",
+    "A terrible name for the new conference room",
+    "What's definitely going on in the group chat we're not in",
+    "The most cursed thing to bring to a potluck at work",
+    "Our team's actual motto is <BLANK>"
+  ]
+}
