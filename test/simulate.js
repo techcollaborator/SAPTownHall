@@ -20,7 +20,7 @@ for (let i = 0; i < N; i++) {
 await sleep(300);
 check(host.state.players.length === N, `${N} players in the lobby`);
 
-host.send({ t: 'host:start', settings: { writeSeconds: 20, finalWriteSeconds: 20, voteSeconds: 20, revealSeconds: 2, scoreSeconds: 2 } });
+host.send({ t: 'host:start', settings: { mode: 'solo', writeSeconds: 20, finalWriteSeconds: 20, voteSeconds: 20, revealSeconds: 2, scoreSeconds: 2 } });
 await host.waitFor(s => s.phase === 'final', 'the end of the game', 120_000);
 
 log('');

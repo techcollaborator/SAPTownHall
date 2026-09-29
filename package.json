@@ -1,7 +1,7 @@
 {
   "name": "quiplash-clone",
   "version": "1.0.0",
-  "description": "A custom Quiplash-style party game: host screen + phone controllers over LAN.",
+  "description": "Quipsmash \u2014 a Quiplash-style party game for SAP town halls: teams, host moderation, 100+ players.",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -15,7 +15,11 @@
     "test:all": "./test/all.sh",
     "test:reconnect": "node test/reconnect.js",
     "test:prompts": "node test/prompts.js",
-    "test:lobby": "node test/lobby.js"
+    "test:lobby": "node test/lobby.js",
+    "test:teams": "node test/teams.js 100 5",
+    "test:townhall": "node test/townhall.js",
+    "test:moderation": "node test/moderation.js",
+    "test:host": "node test/hostcontrols.js"
   },
   "engines": {
     "node": ">=18"

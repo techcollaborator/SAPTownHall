@@ -28,7 +28,7 @@ const flaky  = await joinBot(PORT, host.code, 'Flaky', {
 await sleep(400);
 check(host.state.players.length === 4, '4 players joined');
 
-host.send({ t: 'host:start', settings: { writeSeconds: 10, finalWriteSeconds: 10, voteSeconds: 5, revealSeconds: 2, scoreSeconds: 2 } });
+host.send({ t: 'host:start', settings: { mode: 'solo', writeSeconds: 10, finalWriteSeconds: 10, voteSeconds: 5, revealSeconds: 2, scoreSeconds: 2 } });
 await host.waitFor(s => s.phase === 'final', 'the game to finish despite the chaos', 240_000);
 
 log('');
@@ -69,7 +69,7 @@ host.send({ t: 'host:lobby' });
 await sleep(250);
 check(host.state.phase === 'lobby' && host.state.scoreboard.every(p => p.score === 0), 'back-to-lobby resets scores');
 
-host.send({ t: 'host:start', settings: {} });
+host.send({ t: 'host:start', settings: { mode: 'solo',} });
 await sleep(300);
 check(host.state.phase === 'writing' && host.state.round === 1, 'a rematch starts cleanly from the lobby');
 

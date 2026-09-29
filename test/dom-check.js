@@ -22,7 +22,7 @@ for (const [i, name] of ['Ada', 'Bo', 'Cy', 'Dee', 'Eli'].entries()) {
 await sleep(400);
 
 const screen = await browser.open(`http://127.0.0.1:${PORT}/host?room=${host.code}`, { width: 1440, height: 900 });
-host.send({ t: 'host:start', settings: { writeSeconds: 30, voteSeconds: 30, revealSeconds: 30, scoreSeconds: 30 } });
+host.send({ t: 'host:start', settings: { mode: 'solo', writeSeconds: 30, voteSeconds: 30, revealSeconds: 30, scoreSeconds: 30 } });
 
 /* ---- while voting is open: the screen must not reveal who wrote what ---- */
 await host.waitFor(s => s.phase === 'voting', 'the first vote');

@@ -15,7 +15,7 @@ await sleep(900);
 const seat = () => host.state.players.find(p => p.name === 'Zoe');
 check(!!seat(), 'the browser player joined via ?room=&name=');
 
-host.send({ t: 'host:start', settings: { writeSeconds: 120, voteSeconds: 30, revealSeconds: 5, scoreSeconds: 5 } });
+host.send({ t: 'host:start', settings: { mode: 'solo', writeSeconds: 120, voteSeconds: 30, revealSeconds: 5, scoreSeconds: 5 } });
 await sleep(900);
 const promptBefore = await phone.text('.prompt');
 check(promptBefore.length > 3, 'the phone shows a writing prompt');

@@ -16,6 +16,10 @@ run() {
 }
 
 run "prompt banks"                    node test/prompts.js
+run "moderation filter"               node test/moderation.js
+run "host controls and team maths"    node test/hostcontrols.js
+run "team game \u00b7 100 players"         node test/teams.js 100 5
+run "team game \u00b7 12 players"          node test/teams.js 12 3
 run "full game · 3 players"           node test/simulate.js 3
 run "full game · 4 players"           node test/simulate.js 4
 run "full game · 8 players"           node test/simulate.js 8

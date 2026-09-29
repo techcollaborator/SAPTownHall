@@ -42,7 +42,7 @@ await shot(screen, '1-host-lobby');
 await shot(phone, '2-phone-lobby');
 check((await screen.text('.code')).trim() === host.code, `the big screen shows the room code (${host.code})`);
 
-host.send({ t: 'host:start', settings: { writeSeconds: 40, finalWriteSeconds: 40, voteSeconds: 30, revealSeconds: 25, scoreSeconds: 25 } });
+host.send({ t: 'host:start', settings: { mode: 'solo', writeSeconds: 40, finalWriteSeconds: 40, voteSeconds: 30, revealSeconds: 25, scoreSeconds: 25 } });
 
 await host.waitFor(s => s.phase === 'writing', 'writing');
 await sleep(400);

@@ -75,7 +75,7 @@ async function probeAll(label) {
 }
 
 await probeAll('lobby');
-host.send({ t: 'host:start', settings: { writeSeconds: 30, finalWriteSeconds: 30, voteSeconds: 30, revealSeconds: 30, scoreSeconds: 30 } });
+host.send({ t: 'host:start', settings: { mode: 'solo', writeSeconds: 30, finalWriteSeconds: 30, voteSeconds: 30, revealSeconds: 30, scoreSeconds: 30 } });
 
 await host.waitFor(s => s.phase === 'writing', 'writing'); await sleep(700);
 await probeAll('writing');

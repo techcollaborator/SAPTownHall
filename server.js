@@ -88,15 +88,27 @@ function sendQr(res, data) {
 
 /* -------------------------------------------------------------- WebSocket */
 
-const dirty = new Set();
-let flushQueued = false;
+/**
+ * State changes are coalesced per room and rate-limited. In a 100-person game a single
+ * matchup draws ~90 votes; without this, each one would push a fresh state to every
+ * connected phone. 180ms is imperceptible on screen and cuts that traffic by an order
+ * of magnitude. Phase changes still land on the next tick.
+ */
+const MIN_BROADCAST_GAP_MS = 180;
+const pending = new Map();   // room -> timer
 
 const rooms = new RoomManager({
   onUpdate: room => {
-    dirty.add(room);
-    if (flushQueued) return;
-    flushQueued = true;
-    setImmediate(() => { flushQueued = false; for (const r of dirty) broadcast(r); dirty.clear(); });
+    if (pending.has(room)) return;
+    const since = Date.now() - (room._lastBroadcast ?? 0);
+    const wait = since >= MIN_BROADCAST_GAP_MS ? 0 : MIN_BROADCAST_GAP_MS - since;
+    const timer = setTimeout(() => {
+      pending.delete(room);
+      room._lastBroadcast = Date.now();
+      broadcast(room);
+    }, wait);
+    timer.unref?.();
+    pending.set(room, timer);
   }
 });
 
@@ -206,6 +218,37 @@ function handle(ws, msg) {
       return;
     }
 
+    /* ---- team mode ---- */
+
+    case 'draft': {
+      if (!room || ws.ctx.role !== 'player') return;
+      const res = room.submitDraft(ws.ctx.playerId, msg.text);
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      else if (res.flagged) send(ws, { t: 'toast', text: 'Heads up: that got auto-flagged for the host to check.' });
+      return;
+    }
+
+    case 'pick': {
+      if (!room || ws.ctx.role !== 'player') return;
+      const res = room.pickVote(ws.ctx.playerId, msg.draftId);
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      return;
+    }
+
+    case 'lock': {
+      if (!room || ws.ctx.role !== 'player') return;
+      const res = room.lockTeam(ws.ctx.playerId);
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      return;
+    }
+
+    case 'flag': {
+      if (!room || ws.ctx.role !== 'player') return;
+      const res = room.flagAnswer(ws.ctx.playerId, msg.matchupId, msg.sideId);
+      if (res.ok) send(ws, { t: 'toast', text: 'Reported to the host. Thanks.' });
+      return;
+    }
+
     default: break;
   }
 
@@ -220,6 +263,27 @@ function handle(ws, msg) {
     case 'host:advance': return room.advance();
     case 'host:lobby': return room.backToLobby();
     case 'host:kick': return room.kick(msg.playerId);
+    case 'host:exclude': {
+      const res = room.toggleExclude(msg.matchupId, msg.sideId);
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      return;
+    }
+    case 'host:approve': {
+      const res = room.startVotingFromReview();
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      return;
+    }
+    case 'host:void': {
+      const res = room.voidMatchup();
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      return;
+    }
+    case 'host:bots': {
+      const res = room.addBots(msg.count);
+      if (!res.ok) send(ws, { t: 'error', error: res.error });
+      else send(ws, { t: 'toast', text: `Added ${res.added} rehearsal bots.` });
+      return;
+    }
     case 'host:prompts': {
       const lines = String(msg.text ?? '').split('\n').map(s => s.trim()).filter(Boolean);
       room.customPrompts = lines.slice(0, 500);

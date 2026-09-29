@@ -70,8 +70,15 @@ startTicker(
   (left, total) => paintTimer($('#timer-bar'), $('#clock'), left, total)
 );
 
+/** Teams in team mode, players in solo. */
+function standings(s) {
+  return (s.mode === 'teams' ? s.teams : s.scoreboard) ?? [];
+}
+
 function totalForPhase(s) {
   const t = s.settings ?? {};
+  if (s.phase === 'drafting') return t.draftSeconds;
+  if (s.phase === 'picking') return t.pickSeconds;
   if (s.phase === 'writing') return s.roundKind === 'final' ? t.finalWriteSeconds : t.writeSeconds;
   if (s.phase === 'voting') return t.voteSeconds;
   if (s.phase === 'reveal') return t.revealSeconds;
@@ -89,7 +96,8 @@ function render() {
   roundTag.textContent = state.phase === 'lobby' ? ''
     : state.round === 3 ? `LAST LASH · ×3`
     : `ROUND ${state.round} OF ${state.totalRounds} · ×${state.multiplier}`;
-  skipBtn.classList.toggle('hidden', !['writing', 'voting', 'reveal', 'scores'].includes(state.phase));
+  skipBtn.classList.toggle('hidden',
+    !['writing', 'drafting', 'picking', 'voting', 'reveal', 'scores'].includes(state.phase));
 
   if (state.phase !== phaseSeen) {
     if (state.phase === 'voting') blip(520, 130);
@@ -105,8 +113,9 @@ function render() {
 
   clear(stage);
   stage.append(({
-    lobby: viewLobby, writing: viewWriting, voting: viewVoting,
-    reveal: viewReveal, scores: viewScores, final: viewFinal
+    lobby: viewLobby, writing: viewWriting, drafting: viewDrafting, picking: viewPicking,
+    review: viewReview, voting: viewVoting, reveal: viewReveal,
+    scores: viewScores, final: viewFinal
   }[state.phase] ?? viewLobby)());
 }
 
@@ -115,19 +124,28 @@ function signature(s) {
   const base = `${s.phase}:${s.round}`;
   switch (s.phase) {
     case 'lobby':
-      return `${base}:${s.code}:${joinHost}:${s.customPromptCount}:` +
-        s.players.map(p => `${p.id}${p.name}${p.connected}`).join(',');
+      return `${base}:${s.code}:${joinHost}:${s.customPromptCount}:${s.mode}:${s.settings.teamSize}:` +
+        (s.players ?? []).map(p => `${p.id}${p.name}${p.connected}`).join(',');
+    case 'drafting':
+      return `${base}:${s.drafting?.written}/${s.drafting?.expected}:` +
+        (s.drafting?.teams ?? []).map(t => `${t.name}${t.drafts}`).join(',');
+    case 'picking':
+      return `${base}:` + (s.picking?.teams ?? []).map(t => `${t.name}${t.locked}${t.waiting}`).join(',');
+    case 'review':
+      return `${base}:` + (s.review?.rows ?? []).map(r => `${r.sideId}${r.excluded}${r.flagged}`).join(',');
     case 'writing':
       return `${base}:${(s.writing?.done ?? []).map(p => p.name + p.away).join(',')}` +
         `|${(s.writing?.waiting ?? []).map(p => p.name + p.away).join(',')}`;
     case 'voting':
-      return `${base}:${s.voting?.matchupId}:${(s.voting?.judges ?? []).map(j => `${j.name}${j.voted}${j.away}`).join(',')}`;
+      return `${base}:${s.voting?.matchupId}:${s.voting?.votedCount}/${s.voting?.voterCount}:` +
+        `${(s.voting?.answers ?? []).map(a => a.flags).join(',')}:` +
+        (s.voting?.judges ?? []).map(j => `${j.name}${j.voted}${j.away}`).join(',');
     case 'reveal':
       return `${base}:${s.reveal?.prompt}:${(s.reveal?.scored ?? []).map(x => `${x.playerId}${x.votes}${x.points}`).join(',')}`;
     case 'scores':
-      return `${base}:${s.scoreboard.map(p => `${p.id}${p.score}${p.roundPoints}`).join(',')}`;
+      return `${base}:${standings(s).map(r => `${r.id}${r.score}${r.roundPoints}`).join(',')}`;
     case 'final':
-      return `${base}:${s.scoreboard.map(p => `${p.id}${p.score}`).join(',')}`;
+      return `${base}:${standings(s).map(r => `${r.id}${r.score}`).join(',')}:${s.topAuthor?.name ?? ''}`;
     default:
       return base;
   }
@@ -150,20 +168,36 @@ function viewLobby() {
     h('img', { src: backend(`/qr.svg?d=${encodeURIComponent(joinUrl)}`), alt: 'Join QR code', onerror(){ this.remove(); } })
   ));
 
+  // A town hall roster is too long to plate up in full, so past a point it's a headcount.
+  const CAP = 28;
+  const players = state.players ?? [];
   wrap.append(h('div', { class: 'lobby-players' },
-    count ? state.players.map(p => h('div', { class: `plate ${p.connected ? '' : 'away'}` },
-      h('span', { class: 'dot', style: `background:${p.color}` }),
-      p.name,
-      h('span', { class: 'x', title: 'Remove', onclick: () => sock.send({ t: 'host:kick', playerId: p.id }) }, '×')
-    )) : h('div', { class: 'muted', style: 'font-size:1.2rem' }, 'Waiting for players to join…')
+    count ? [
+      ...players.slice(0, CAP).map(p => h('div', { class: `plate ${p.connected ? '' : 'away'} ${p.isBot ? 'bot' : ''}` },
+        h('span', { class: 'dot', style: `background:${p.color}` }),
+        p.name,
+        h('span', { class: 'x', title: 'Remove', onclick: () => sock.send({ t: 'host:kick', playerId: p.id }) }, '×')
+      )),
+      count > CAP ? h('div', { class: 'plate' }, `+ ${count - CAP} more`) : null
+    ] : h('div', { class: 'muted', style: 'font-size:1.2rem' }, 'Waiting for people to join…')
   ));
 
-  wrap.append(h('div', { class: 'row center', style: 'justify-content:center;gap:18px;flex-wrap:wrap' },
+  const teamMode = state.mode === 'teams';
+  const floor = teamMode ? (state.minTeamPlayers ?? 4) : state.minPlayers;
+  const teamsWhenStarting = Math.max(2, Math.round(count / (state.settings.teamSize || 5)));
+
+  wrap.append(h('div', { class: 'row center', style: 'justify-content:center;gap:14px;flex-wrap:wrap' },
     h('button', {
-      disabled: count < state.minPlayers,
+      disabled: count < floor,
       onclick: () => sock.send({ t: 'host:start', settings: readSettings() })
-    }, count < state.minPlayers ? `Need ${state.minPlayers - count} more player${state.minPlayers - count === 1 ? '' : 's'}` : `Start the game (${count})`),
-    h('div', { class: 'pill' }, `${state.customPromptCount} custom prompts loaded`)
+    }, count < floor
+      ? `Need ${floor - count} more`
+      : teamMode
+        ? `Start — ${count} people, ${teamsWhenStarting} teams`
+        : `Start the game (${count})`),
+    h('div', { class: 'pill' }, `${count} here`),
+    teamMode ? h('div', { class: 'pill' }, `${teamsWhenStarting} teams of ~${state.settings.teamSize}`) : null,
+    h('div', { class: 'pill' }, `${state.customPromptCount} custom prompts`)
   ));
 
   wrap.append(hostTools());
@@ -175,13 +209,36 @@ function hostTools() {
   const d = h('details', { class: 'host-tools card' },
     h('summary', {}, 'Game options & custom prompts'),
     h('div', { class: 'stack', style: 'margin-top:16px' },
+      h('div', { class: 'row', style: 'gap:10px;flex-wrap:wrap' },
+        h('button', {
+          id: 'mode-teams', class: `small ${s.mode === 'teams' ? '' : 'ghost'}`,
+          onclick: () => sock.send({ t: 'host:settings', settings: { mode: 'teams' } })
+        }, 'Teams (town hall)'),
+        h('button', {
+          id: 'mode-solo', class: `small ${s.mode === 'solo' ? '' : 'ghost'}`,
+          onclick: () => sock.send({ t: 'host:settings', settings: { mode: 'solo' } })
+        }, 'Individuals (small group)')
+      ),
       h('div', { class: 'settings-grid' },
-        numField('writeSeconds', 'Write time (s)', s.writeSeconds),
-        numField('finalWriteSeconds', 'Final write (s)', s.finalWriteSeconds),
+        s.mode === 'teams' ? numField('teamSize', 'People per team', s.teamSize) : null,
+        s.mode === 'teams' ? numField('finalists', 'Teams in the final', s.finalists) : null,
+        s.mode === 'teams' ? numField('draftSeconds', 'Write time (s)', s.draftSeconds) : null,
+        s.mode === 'teams' ? numField('pickSeconds', 'Team picks (s)', s.pickSeconds) : null,
+        s.mode === 'solo' ? numField('writeSeconds', 'Write time (s)', s.writeSeconds) : null,
+        s.mode === 'solo' ? numField('finalWriteSeconds', 'Final write (s)', s.finalWriteSeconds) : null,
         numField('voteSeconds', 'Vote time (s)', s.voteSeconds),
         numField('revealSeconds', 'Reveal (s)', s.revealSeconds),
         numField('scoreSeconds', 'Scoreboard (s)', s.scoreSeconds),
-        numField('totalRounds', 'Rounds (1-3)', s.totalRounds)
+        numField('totalRounds', 'Rounds (1-5)', s.totalRounds)
+      ),
+      h('div', { class: 'row', style: 'gap:10px;flex-wrap:wrap;align-items:center' },
+        h('span', { class: 'muted', style: 'font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em' },
+          'Rehearse without a room full of people'),
+        ...[20, 50, 100].map(n => h('button', {
+          class: 'ghost small',
+          onclick: () => sock.send({ t: 'host:bots', count: n })
+        }, `+${n} bots`)),
+        state.botCount ? h('span', { class: 'pill' }, `${state.botCount} bots in`) : null
       ),
       h('label', { class: 'row', style: 'gap:10px;font-weight:700' },
         h('input', { type: 'checkbox', id: 'useCustomOnly', style: 'width:auto', ...(s.useCustomOnly ? { checked: true } : {}) }),
@@ -217,6 +274,9 @@ const numField = (id, label, val) => h('label', {}, label, h('input', { type: 'n
 function readSettings() {
   const get = id => $('#' + id) ? Number($('#' + id).value) : undefined;
   return {
+    mode: state?.settings?.mode,
+    teamSize: get('teamSize'), finalists: get('finalists'),
+    draftSeconds: get('draftSeconds'), pickSeconds: get('pickSeconds'),
     writeSeconds: get('writeSeconds'), finalWriteSeconds: get('finalWriteSeconds'),
     voteSeconds: get('voteSeconds'), revealSeconds: get('revealSeconds'),
     scoreSeconds: get('scoreSeconds'), totalRounds: get('totalRounds'),
@@ -245,6 +305,89 @@ function viewWriting() {
   );
 }
 
+/* --------------------------------------------------------- team: drafting */
+
+function viewDrafting() {
+  const d = state.drafting ?? { written: 0, expected: 0, prompts: 0, teams: [], sittingOut: 0 };
+  const pct = d.expected ? Math.round((d.written / d.expected) * 100) : 0;
+  return h('div', { class: 'stack center' },
+    h('div', { class: 'prompt-big' },
+      state.roundKind === 'final' ? 'Grand final — finalists, check your phones!' : 'Check your phones!'),
+    h('p', { class: 'muted', style: 'font-size:1.15rem;margin:0' },
+      `Everyone writes one idea. Your team then picks the one it sends up. ` +
+      `${d.prompts} matchup${d.prompts === 1 ? '' : 's'} this round.`),
+    d.sittingOut ? h('p', { class: 'muted', style: 'margin:0' },
+      `${d.sittingOut} people are judges this round.`) : null,
+    h('div', { class: 'tally' }, `${d.written} of ${d.expected} ideas in`),
+    h('div', { class: 'bigbar' }, h('i', { style: `width:${pct}%` })),
+    h('div', { class: 'waiting-grid' }, d.teams.map(t => h('div', {
+      class: `plate ${t.drafts >= t.size ? 'done' : ''}`
+    },
+      h('span', { class: 'dot', style: `background:${t.color}` }),
+      t.name,
+      h('span', { class: 'muted' }, ` ${t.drafts}/${t.size}`)
+    )))
+  );
+}
+
+/* ---------------------------------------------------------- team: picking */
+
+function viewPicking() {
+  const pk = state.picking ?? { teams: [] };
+  const locked = pk.teams.filter(t => t.locked).length;
+  return h('div', { class: 'stack center' },
+    h('div', { class: 'prompt-big' }, 'Teams, pick your best line'),
+    h('p', { class: 'muted', style: 'font-size:1.15rem;margin:0' },
+      'Vote for a teammate\'s idea on your phone. Captains can lock it in early.'),
+    h('div', { class: 'tally' }, `${locked} of ${pk.teams.length} teams locked in`),
+    h('div', { class: 'waiting-grid' }, pk.teams.map(t => h('div', {
+      class: `plate ${t.locked ? 'done' : ''}`
+    },
+      h('span', { class: 'dot', style: `background:${t.color}` }),
+      t.name,
+      t.locked ? ' ✓' : h('span', { class: 'muted' }, ` ${t.ideas} ideas`)
+    )))
+  );
+}
+
+/* ----------------------------------------------------- host review (moderation) */
+
+function viewReview() {
+  const r = state.review ?? { rows: [], total: 0, flagged: 0, excluded: 0 };
+  const usable = r.total - r.excluded;
+  return h('div', { class: 'stack' },
+    h('div', { class: 'row spread', style: 'flex-wrap:wrap;gap:12px' },
+      h('div', {},
+        h('div', { class: 'display', style: 'font-size:clamp(1.3rem,2.6vw,2.2rem)' }, 'Your call before this goes up'),
+        h('div', { class: 'muted', style: 'font-size:.95rem' },
+          `${r.total} answers · ${r.flagged} auto-flagged · ${r.excluded} pulled. Nothing is on the big screen yet.`)
+      ),
+      h('div', { class: 'row', style: 'gap:10px' },
+        r.flagged ? h('span', { class: 'pill flagpill' }, `⚑ ${r.flagged} to check`) : h('span', { class: 'pill' }, '⚑ none flagged'),
+        h('button', { onclick: () => sock.send({ t: 'host:approve' }) }, `Put ${usable} answers up ▸`)
+      )
+    ),
+    h('div', { class: 'reviewlist' }, r.rows.length
+      ? r.rows.map(row => h('div', { class: `reviewrow ${row.excluded ? 'pulled' : ''} ${row.flagged ? 'flagged' : ''}` },
+          h('div', { class: 'reviewmeta' },
+            h('span', { class: 'dot', style: `background:${row.color}` }),
+            h('strong', {}, row.name),
+            h('span', { class: 'muted' }, ` · ${row.authorName}`),
+            row.flagged ? h('span', { class: 'flagtag' }, `⚑ ${row.flagReason ?? 'check this'}`) : null,
+            row.safety ? h('span', { class: 'muted' }, ' · ran out of time') : null
+          ),
+          h('div', { class: 'reviewtext' }, row.text),
+          h('div', { class: 'reviewprompt muted' }, row.prompt),
+          h('button', {
+            class: `small ${row.excluded ? '' : 'ghost'}`,
+            onclick: () => sock.send({ t: 'host:exclude', matchupId: row.matchupId, sideId: row.sideId })
+          }, row.excluded ? 'Pulled — put it back' : 'Pull this one')
+        ))
+      : h('div', { class: 'muted center' }, 'No answers came in.')
+    )
+  );
+}
+
 /* ----------------------------------------------------------------- voting */
 
 function viewVoting() {
@@ -261,11 +404,21 @@ function viewVoting() {
           h('div', { class: 'vs' }, 'VS'),
           h('div', { class: 'answer' }, v.answers[1].text)),
     h('div', { class: 'center' },
+      v.contenders?.length ? h('div', { class: 'row', style: 'justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:10px' },
+        v.contenders.map(c => h('span', { class: 'pill' },
+          h('span', { class: 'dot', style: `background:${c.color}` }), c.name))) : null,
       h('div', { class: 'tally' }, `${v.votedCount} / ${v.voterCount} votes in`),
-      h('div', { class: 'waiting-grid', style: 'margin-top:12px' },
-        v.judges.map(j => h('div', { class: `plate ${j.voted ? 'done' : ''} ${j.away ? 'away' : ''}` },
-          h('span', { class: 'dot', style: `background:${j.color}` }), j.name,
-          j.voted ? ' ✓' : j.away ? ' (away)' : '')))
+      v.voterCount > 12
+        ? h('div', { class: 'bigbar', style: 'margin-top:10px' },
+            h('i', { style: `width:${v.voterCount ? Math.round((v.votedCount / v.voterCount) * 100) : 0}%` }))
+        : h('div', { class: 'waiting-grid', style: 'margin-top:12px' },
+            v.judges.map(j => h('div', { class: `plate ${j.voted ? 'done' : ''} ${j.away ? 'away' : ''}` },
+              h('span', { class: 'dot', style: `background:${j.color}` }), j.name,
+              j.voted ? ' ✓' : j.away ? ' (away)' : ''))),
+      v.answers.some(a => a.flags) ? h('div', { class: 'row', style: 'justify-content:center;gap:12px;margin-top:12px' },
+        h('span', { class: 'flagtag' }, `⚑ ${v.answers.reduce((a, x) => a + x.flags, 0)} reports from the room`),
+        h('button', { class: 'ghost small', onclick: () => sock.send({ t: 'host:void' }) }, 'Pull this matchup')
+      ) : null
     )
   );
 }
@@ -281,7 +434,9 @@ function viewReveal() {
   },
     s.shutout ? h('div', { class: 'quiplash' }, 'QUIPSMASH!') : null,
     h('div', {}, s.text),
-    h('div', { class: 'who' }, h('span', { class: 'dot', style: `background:${s.color}` }), s.name),
+    h('div', { class: 'who' },
+      h('span', { class: 'dot', style: `background:${s.color}` }), s.name,
+      s.authorName ? h('span', { class: 'muted byline' }, ` — ${s.authorName}`) : null),
     h('div', { class: 'votes' }, s.voters.map((_, i) =>
       h('i', { style: `animation-delay:${i * 90}ms` }))),
     h('div', { class: 'pts' }, s.points > 0 ? `+${s.points}` : '+0')
@@ -298,7 +453,9 @@ function viewReveal() {
           h('div', {}, s.text),
           h('div', { class: 'right' },
             s.shutout ? h('div', { class: 'smash-pill' }, 'QUIPSMASH!') : null,
-            h('div', { class: 'who' }, h('span', { class: 'dot', style: `background:${s.color}` }), s.name),
+            h('div', { class: 'who' },
+              h('span', { class: 'dot', style: `background:${s.color}` }), s.name,
+              s.authorName ? h('span', { class: 'muted byline' }, ` — ${s.authorName}`) : null),
             h('div', { class: 'votes' }, s.voters.map((_, i) => h('i', { style: `animation-delay:${i * 80}ms` }))),
             h('div', { class: 'pts' }, `+${s.points}`)
           )))
@@ -321,22 +478,35 @@ function columnProps(count) {
 /* ------------------------------------------------------------- scoreboard */
 
 function viewScores() {
+  const rows = standings(state);
   return h('div', { class: 'stack' },
-    h('div', { class: 'prompt-big' }, `End of ${state.round === 3 ? 'the Last Lash' : `round ${state.round}`}`),
-    board(state.scoreboard, true),
-    h('div', { class: 'center muted' }, state.round < state.totalRounds ? 'Next round starting…' : '')
+    h('div', { class: 'prompt-big' },
+      state.round >= state.totalRounds ? `End of the ${state.roundLabel}` : `End of round ${state.round}`),
+    board(rows, true),
+    h('div', { class: 'center muted' },
+      state.round < state.totalRounds
+        ? (state.mode === 'teams' && state.round + 1 >= state.totalRounds
+          ? `Next: the grand final — top ${Math.min(state.settings.finalists, rows.length)} teams only`
+          : 'Next round starting…')
+        : '')
   );
 }
 
-function board(rows, showGain, { twoColAbove = 7 } = {}) {
-  const twoCol = rows.length > twoColAbove;
+function board(rows, showGain, { twoColAbove = 7, maxCols = 2 } = {}) {
+  // Twenty teams in two columns is ten rows deep, which needs tighter rows to fit a TV;
+  // on the final screen the podium takes most of the height, so the tail goes three-up.
+  const cols = rows.length > twoColAbove ? (rows.length > 8 ? maxCols : 2) : 1;
+  const dense = rows.length > 14 || cols > 2;
   return h('div', {
-    class: `board ${twoCol ? 'two-col' : ''}`,
-    style: twoCol ? `--rows:${Math.ceil(rows.length / 2)}` : null
+    class: `board ${cols > 1 ? 'two-col' : ''} ${dense ? 'dense' : ''}`,
+    style: cols > 1 ? `--cols:${cols};--rows:${Math.ceil(rows.length / cols)}` : null
   }, rows.map((p, i) =>
     h('div', { class: 'line', style: `animation-delay:${i * 70}ms` },
       h('div', { class: 'rank' }, `#${p.rank}`),
-      h('div', { class: 'row', style: 'gap:10px' }, h('span', { class: 'dot', style: `background:${p.color}` }), p.name),
+      h('div', { class: 'row', style: 'gap:10px;min-width:0' },
+        h('span', { class: 'dot', style: `background:${p.color}` }),
+        h('span', { class: 'nowrap' }, p.name),
+        p.members?.length ? h('span', { class: 'muted roster' }, p.members.join(', ')) : null),
       showGain && p.roundPoints ? h('div', { class: 'gain' }, `+${p.roundPoints}`) : h('div'),
       h('div', { class: 'total' }, p.score.toLocaleString())
     )));
@@ -345,7 +515,7 @@ function board(rows, showGain, { twoColAbove = 7 } = {}) {
 /* ------------------------------------------------------------------ final */
 
 function viewFinal() {
-  const rows = state.scoreboard;
+  const rows = standings(state);
   const podiumOrder = [rows[1], rows[0], rows[2]].filter(Boolean); // 2nd, 1st, 3rd
   return h('div', { class: 'stack' },
     h('div', {
@@ -358,7 +528,13 @@ function viewFinal() {
       h('div', { class: 'bar', style: `animation-delay:${p.rank * 120}ms` }, p.score.toLocaleString())
     ))),
     // The podium already eats most of the screen, so the also-rans go two-up sooner.
-    rows.length > 3 ? board(rows.slice(3), false, { twoColAbove: 3 }) : null,
+    rows.length > 3 ? board(rows.slice(3), false, { twoColAbove: 3, maxCols: 3 }) : null,
+    state.topAuthor ? h('div', { class: 'center award' },
+      h('span', { class: 'muted' }, 'Sharpest quip of the night: '),
+      h('strong', {}, state.topAuthor.name),
+      state.topAuthor.teamName ? h('span', { class: 'muted' }, ` (${state.topAuthor.teamName})`) : null,
+      h('span', { class: 'pts' }, ` ${state.topAuthor.points.toLocaleString()} pts written`)
+    ) : null,
     h('div', { class: 'row', style: 'justify-content:center;gap:16px' },
       h('button', { onclick: () => sock.send({ t: 'host:start', settings: {} }) }, 'Rematch (same players)'),
       h('button', { class: 'ghost', onclick: () => sock.send({ t: 'host:lobby' }) }, 'Back to lobby')

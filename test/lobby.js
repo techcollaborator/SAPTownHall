@@ -18,7 +18,14 @@ check(await screen.evaluate(`!!document.querySelector('.joincode img')?.complete
 check(/\d+\.\d+\.\d+\.\d+:\d+|localhost/.test(await screen.text('.url')), `an address for phones is shown ("${(await screen.text('.url')).trim()}")`);
 // The first button inside #stage is the start button (the header's Skip lives outside it).
 const startBtn = () => screen.text('#stage button');
-check(/Need 3 more players/.test(await startBtn()), `the start button explains it needs more players ("${(await startBtn()).trim()}")`);
+check(/Need 4 more/.test(await startBtn()), `team mode is the default and wants 4 people ("${(await startBtn()).trim()}")`);
+
+// This test is about the small-group flow, so switch to individuals.
+await screen.evaluate(`document.querySelector('details.host-tools').open = true`);
+await sleep(200);
+await screen.evaluate(`document.querySelector('#mode-solo').click()`);
+await sleep(400);
+check(/Need 3 more players/.test(await startBtn()), `switching to individuals drops the floor to 3 ("${(await startBtn()).trim()}")`);
 
 // Paced bots so the voting phase lingers long enough to inspect later on.
 for (const n of ['Ada', 'Bo']) await joinBot(PORT, host.code, n, { pace: () => 2500 });
