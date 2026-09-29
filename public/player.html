@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Quipsmash — play</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><text y='31' font-size='32'>⚡</text></svg>">
+</head>
+<body>
+<div class="conn" id="conn">connecting…</div>
+
+<div class="play">
+  <header id="head" class="hidden">
+    <div class="me"><span class="dot" id="me-dot"></span><span id="me-name"></span></div>
+    <div class="row" style="gap:10px">
+      <span class="pill" id="room-pill"></span>
+      <span class="score" id="me-score">0</span>
+    </div>
+  </header>
+
+  <div class="timer hidden" id="timer-wrap"><i id="timer-bar"></i></div>
+
+  <main id="stage">
+    <form class="stack" id="join-form">
+      <div class="logo display center" style="font-size:3rem;line-height:1">QUIP<span style="color:var(--yellow)">SMASH</span></div>
+      <input id="code" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters"
+             maxlength="4" inputmode="text" style="text-transform:uppercase;font-family:var(--display);font-size:2rem;text-align:center;letter-spacing:.3em">
+      <input id="name" placeholder="Your name" autocomplete="off" maxlength="14" style="text-align:center;font-weight:800">
+      <button type="submit">Join the game</button>
+      <p class="muted center qr-hint" style="margin:0">The code is on the big screen.</p>
+    </form>
+  </main>
+</div>
+
+<script type="module" src="/js/player.js"></script>
+</body>
+</html>

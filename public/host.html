@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quipsmash — host screen</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><text y='31' font-size='32'>⚡</text></svg>">
+</head>
+<body>
+<div class="conn" id="conn">connecting…</div>
+<div class="host">
+  <header>
+    <div class="brand">QUIP<span>SMASH</span>!</div>
+    <div class="row" id="head-right">
+      <div class="round-tag" id="round-tag"></div>
+      <div class="timer hidden" id="timer-wrap" style="width:clamp(120px,22vw,340px)"><i id="timer-bar"></i></div>
+      <div class="clock" id="clock"></div>
+      <button class="ghost small hidden" id="skip">Skip ▸</button>
+    </div>
+  </header>
+  <main id="stage"></main>
+</div>
+<script type="module" src="/js/host.js"></script>
+</body>
+</html>
