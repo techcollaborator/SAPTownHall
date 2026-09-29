@@ -6,7 +6,7 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/play", "destination": "/player.html" },
-    { "source": "/join", "destination": "/player.html" }
+    { "source": "/play", "destination": "/player" },
+    { "source": "/join", "destination": "/player" }
   ]
 }
