@@ -80,6 +80,28 @@ startTicker(
   (left, total) => paintTimer($('#timer-bar'), $('#clock'), left, total)
 );
 
+/**
+ * Roughly how long a game will take, so the host can see it before starting rather than
+ * finding out live. Deliberately an upper bound: it assumes every voting phase runs its
+ * full timer, when in practice they end as soon as everyone has voted.
+ */
+function estimateMinutes(s, players) {
+  if (s.mode !== 'teams' || players < 2) return null;
+  const teams = Math.max(2, Math.round(players / (s.teamSize || 5)));
+  const matchups = Math.ceil(teams / 2);
+  const review = 12 + teams * 1.5;                 // host reading one answer per team
+  const perRound = s.draftSeconds + s.pickSeconds + review
+    + matchups * (s.voteSeconds + s.revealSeconds) + s.scoreSeconds;
+  const finalRound = s.draftSeconds + s.pickSeconds + review + (s.voteSeconds + s.revealSeconds);
+  return ((s.totalRounds - 1) * perRound + finalRound + 45) / 60;
+}
+
+/** Timer sets for the two ways this gets run. */
+const PRESETS = {
+  fast:    { draftSeconds: 40, pickSeconds: 20, voteSeconds: 15, revealSeconds: 6, scoreSeconds: 6, totalRounds: 3 },
+  relaxed: { draftSeconds: 50, pickSeconds: 30, voteSeconds: 25, revealSeconds: 7, scoreSeconds: 9, totalRounds: 3 }
+};
+
 /** Teams in team mode, players in solo. */
 function standings(s) {
   return (s.mode === 'teams' ? s.teams : s.scoreboard) ?? [];
@@ -134,7 +156,8 @@ function signature(s) {
   const base = `${s.phase}:${s.round}`;
   switch (s.phase) {
     case 'lobby':
-      return `${base}:${s.code}:${joinHost}:${s.customPromptCount}:${s.mode}:${s.settings.teamSize}:` +
+      // Every setting matters here: the lobby shows the timers and the length estimate.
+      return `${base}:${s.code}:${joinHost}:${s.customPromptCount}:${JSON.stringify(s.settings)}:` +
         (s.players ?? []).map(p => `${p.id}${p.name}${p.connected}`).join(',');
     case 'drafting':
       return `${base}:${s.drafting?.written}/${s.drafting?.expected}:` +
@@ -207,6 +230,12 @@ function viewLobby() {
         : `Start the game (${count})`),
     h('div', { class: 'pill' }, `${count} here`),
     teamMode ? h('div', { class: 'pill' }, `${teamsWhenStarting} teams of ~${state.settings.teamSize}`) : null,
+    (() => {
+      const mins = estimateMinutes(state.settings, count);
+      if (mins == null) return null;
+      return h('div', { class: `pill ${mins > 10 ? 'flagpill' : ''}` },
+        `about ${mins < 1.5 ? '1' : Math.round(mins)} min`);
+    })(),
     h('div', { class: 'pill' }, `${state.customPromptCount} custom prompts`)
   ));
 
@@ -229,6 +258,18 @@ function hostTools() {
           onclick: () => sock.send({ t: 'host:settings', settings: { mode: 'solo' } })
         }, 'Individuals (small group)')
       ),
+      s.mode === 'teams' ? h('div', { class: 'row', style: 'gap:10px;flex-wrap:wrap;align-items:center' },
+        h('span', { class: 'muted', style: 'font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em' },
+          'Pace'),
+        h('button', {
+          class: 'small ghost',
+          onclick: () => sock.send({ t: 'host:settings', settings: PRESETS.fast })
+        }, 'Fast — 30 people in under 10 min'),
+        h('button', {
+          class: 'small ghost',
+          onclick: () => sock.send({ t: 'host:settings', settings: PRESETS.relaxed })
+        }, 'Relaxed')
+      ) : null,
       h('div', { class: 'settings-grid' },
         s.mode === 'teams' ? numField('teamSize', 'People per team', s.teamSize) : null,
         s.mode === 'teams' ? numField('finalists', 'Teams in the final', s.finalists) : null,
