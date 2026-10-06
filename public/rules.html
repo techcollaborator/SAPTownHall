@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quipsmash — how to play</title>
+<style>
+  :root {
+    --bg:#0a0a14; --ink:#f4f2ff; --muted:#a09dc8;
+    --pink:#ff3d7f; --yellow:#ffd23f; --cyan:#2fe3e0; --purple:#7c5cff; --green:#3ddc84;
+    --line:rgba(255,255,255,.14); --card:rgba(255,255,255,.06);
+    --display:"Impact","Haettenschweiler","Franklin Gothic Bold","Arial Black",system-ui,sans-serif;
+    --ui:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#0a0a14; color:var(--ink); font-family:var(--ui);
+    background-image:
+      radial-gradient(60vw 60vw at 10% -12%, rgba(124,92,255,.40), transparent 60%),
+      radial-gradient(50vw 50vw at 96% 4%, rgba(255,61,127,.30), transparent 60%),
+      radial-gradient(60vw 60vw at 50% 112%, rgba(47,227,224,.22), transparent 60%);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:clamp(18px,2.4vw,40px);
+  }
+  .sheet{width:100%; max-width:1540px; display:grid; gap:clamp(14px,1.8vh,26px)}
+  h1,h2,h3,.d{font-family:var(--display); font-weight:400; text-transform:uppercase; letter-spacing:.02em}
+
+  header{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap}
+  .logo{font-family:var(--display); font-size:clamp(1.6rem,2.6vw,2.6rem); line-height:1}
+  .logo span{color:var(--yellow)} .logo em{font-style:normal;color:var(--pink)}
+  h1{font-size:clamp(2.2rem,4.6vw,4.4rem); line-height:.92}
+  h1 b{color:var(--yellow); font-weight:400}
+  .meta{display:flex; gap:10px; flex-wrap:wrap}
+  .pill{border:2px solid var(--line); background:rgba(255,255,255,.07); border-radius:999px;
+    padding:7px 16px; font-weight:800; font-size:clamp(.72rem,.95vw,.95rem)}
+
+  .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(10px,1.1vw,18px)}
+  .step{background:var(--card); border:2px solid var(--line); border-radius:20px;
+    padding:clamp(14px,1.5vw,24px); display:grid; gap:10px; align-content:start; position:relative; overflow:hidden}
+  .step::after{content:""; position:absolute; inset:0 0 auto 0; height:5px; background:var(--c)}
+  .num{font-family:var(--display); font-size:clamp(2rem,3.4vw,3.4rem); line-height:.8; color:var(--c)}
+  .step h2{font-size:clamp(1.05rem,1.55vw,1.7rem); color:var(--ink)}
+  .step p{font-size:clamp(.82rem,1.02vw,1.08rem); line-height:1.4; color:#ddd9ff}
+  .step .note{color:var(--muted); font-size:clamp(.72rem,.9vw,.95rem); font-weight:700}
+  .chip{display:inline-block; background:rgba(0,0,0,.35); border:1px solid var(--line);
+    border-radius:8px; padding:2px 8px; font-weight:800; font-size:.92em; color:var(--cyan)}
+
+  .lower{display:grid; grid-template-columns:1.15fr 1fr; gap:clamp(10px,1.1vw,18px)}
+  .panel{background:var(--card); border:2px solid var(--line); border-radius:20px; padding:clamp(14px,1.5vw,24px)}
+  .panel h3{font-size:clamp(1rem,1.45vw,1.5rem); color:var(--cyan); margin-bottom:12px}
+  .points{display:grid; gap:9px}
+  .pt{display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:baseline;
+    font-size:clamp(.82rem,1.02vw,1.08rem); line-height:1.35}
+  .pt b{font-family:var(--display); color:var(--yellow); font-size:1.28em; white-space:nowrap}
+  .sweep{border:2px solid var(--pink); background:rgba(255,61,127,.14); border-radius:12px;
+    padding:9px 14px; margin-top:12px; font-size:clamp(.8rem,1vw,1.05rem)}
+  .sweep b{font-family:var(--display); color:var(--pink); letter-spacing:.04em}
+  ul{list-style:none; display:grid; gap:9px}
+  li{display:grid; grid-template-columns:auto 1fr; gap:11px; align-items:start;
+    font-size:clamp(.8rem,1vw,1.06rem); line-height:1.38}
+  li i{font-style:normal; font-size:1.1em; line-height:1.2}
+  footer{text-align:center; color:var(--muted); font-weight:800; letter-spacing:.14em;
+    font-size:clamp(.66rem,.85vw,.88rem); text-transform:uppercase}
+
+  @media (max-width:900px){
+    body{align-items:flex-start}
+    .steps{grid-template-columns:1fr 1fr}
+    .lower{grid-template-columns:1fr}
+    h1{font-size:2.1rem}
+  }
+  @media (max-width:560px){ .steps{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <div>
+      <div class="logo">QUIP<span>SMASH</span><em>!</em></div>
+      <h1>How to play <b>in four steps</b></h1>
+    </div>
+    <div class="meta">
+      <span class="pill">Teams of 5</span>
+      <span class="pill">3 rounds</span>
+      <span class="pill">~15 minutes</span>
+      <span class="pill">Play on your phone</span>
+    </div>
+  </header>
+
+  <div class="steps">
+    <div class="step" style="--c:var(--cyan)">
+      <div class="num">1</div>
+      <h2>Get in</h2>
+      <p>Scan the QR code on the big screen, or go to the web address shown there. Type the
+         <span class="chip">4-letter code</span> and your name.</p>
+      <p class="note">You'll be put on a team of five. Watch the screen to see who's with you.</p>
+    </div>
+
+    <div class="step" style="--c:var(--yellow)">
+      <div class="num">2</div>
+      <h2>Write one line</h2>
+      <p>A prompt appears on your phone — something like <em>"The most dangerous sentence in a
+         project status deck…"</em> Type the funniest answer you can.</p>
+      <p class="note">80 characters. Short and punchy beats long and clever.</p>
+    </div>
+
+    <div class="step" style="--c:var(--purple)">
+      <div class="num">3</div>
+      <h2>Your team picks</h2>
+      <p>You'll see every line your team wrote, with no names on them. Vote for the best one —
+         that's the one your team sends to the big screen.</p>
+      <p class="note">You can't vote for your own. Captains break ties.</p>
+    </div>
+
+    <div class="step" style="--c:var(--pink)">
+      <div class="num">4</div>
+      <h2>Judge the rest</h2>
+      <p>Your team's line goes head to head against another team's. Everyone <em>not</em> in that
+         matchup votes for the funnier one.</p>
+      <p class="note">You never vote on your own team's answer. Just enjoy it.</p>
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="panel">
+      <h3>How points work</h3>
+      <div class="points">
+        <div class="pt"><b>Vote share</b><span>Points are split by how many votes your line got, so a 40–10 win pays far better than a 26–24 squeak.</span></div>
+        <div class="pt"><b>×1 ×2 ×3</b><span>Each round is worth more than the last. The grand final is the top four teams only — it's still anyone's game going in.</span></div>
+        <div class="pt"><b>Solo award</b><span>Whoever's own lines earn the most points across the night takes the <em>sharpest quip</em> award.</span></div>
+      </div>
+      <div class="sweep"><b>Clean sweep:</b> take <em>every single vote</em> in a matchup and your team gets a 25% bonus and a badge on the big screen.</div>
+    </div>
+
+    <div class="panel">
+      <h3>Good to know</h3>
+      <ul>
+        <li><i>👀</i><span><b>Keep it work-appropriate.</b> The host reads every answer before it's projected and can pull anything. Your name is next to it.</span></li>
+        <li><i>⏱️</i><span><b>Miss the timer</b> and a placeholder is submitted for you. It is deliberately not funny.</span></li>
+        <li><i>📶</i><span><b>Lost signal or locked your phone?</b> Just reload the page — you keep your team, your score and anything you'd typed.</span></li>
+        <li><i>🕵️</i><span><b>Nobody knows whose line is whose</b> while people are voting. Your team and your name only appear once the votes are in.</span></li>
+        <li><i>⚑</i><span><b>See something off?</b> Tap the flag beside any answer to report it straight to the host.</span></li>
+        <li><i>🏳️</i><span><b>Team captain?</b> You'll see an extra button to lock your team's answer in early, and your vote settles a tie.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Write something funny · Vote for someone else · Blame the interface</footer>
+</div>
+</body>
+</html>

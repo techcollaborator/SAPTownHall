@@ -43,16 +43,26 @@ const sock = createSocket({
   }
 });
 
-skipBtn.addEventListener('click', () => sock.send({ t: 'host:advance' }));
+skipBtn.addEventListener('click', () => {
+  if (Date.now() - lastSkip < 600) return;   // one skip per press, however fast you click
+  lastSkip = Date.now();
+  sock.send({ t: 'host:advance' });
+});
 
 // The laptop is usually across the room, so give the big screen keyboard controls.
+let lastSkip = 0;
 addEventListener('keydown', e => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName ?? '');
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  // Holding the key down would otherwise machine-gun through matchups: key auto-repeat
+  // fires continuously, and each press skips a whole phase. One press, one skip.
+  if (e.repeat) { e.preventDefault(); return; }
   if (e.key === ' ' || e.key === 'Enter') {
     if (state?.phase === 'lobby') {
       if (state.players.length >= state.minPlayers) sock.send({ t: 'host:start', settings: readSettings() });
     } else {
+      if (Date.now() - lastSkip < 600) { e.preventDefault(); return; }
+      lastSkip = Date.now();
       sock.send({ t: 'host:advance' });
     }
     e.preventDefault();
